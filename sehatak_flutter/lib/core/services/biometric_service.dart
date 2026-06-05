@@ -3,17 +3,20 @@ import 'package:local_auth/local_auth.dart';
 class BiometricService {
   final LocalAuthentication _auth = LocalAuthentication();
 
-  // التحقق من توفر البصمة
   Future<bool> isAvailable() async {
-    return await _auth.canCheckBiometrics && await _auth.isDeviceSupported();
+    return await _auth.canCheckBiometrics;
   }
 
-  // الحصول على أنواع البصمة المتاحة
   Future<List<BiometricType>> getAvailableTypes() async {
     return await _auth.getAvailableBiometrics();
   }
 
-  // طلب البصمة
+  String getBiometricName(List<BiometricType> types) {
+    if (types.contains(BiometricType.face)) return 'Face ID';
+    if (types.contains(BiometricType.fingerprint)) return 'البصمة';
+    return 'البصمة';
+  }
+
   Future<bool> authenticate({required String reason}) async {
     try {
       return await _auth.authenticate(
@@ -26,13 +29,5 @@ class BiometricService {
     } catch (e) {
       return false;
     }
-  }
-
-  // وصف نوع البصمة
-  String getBiometricName(List<BiometricType> types) {
-    if (types.contains(BiometricType.face)) return 'Face ID';
-    if (types.contains(BiometricType.iris)) return 'Iris';
-    if (types.contains(BiometricType.fingerprint)) return 'البصمة';
-    return 'بصمة الإصبع';
   }
 }

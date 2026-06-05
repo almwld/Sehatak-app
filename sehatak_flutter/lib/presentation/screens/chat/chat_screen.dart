@@ -1,78 +1,68 @@
 import 'package:flutter/material.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
-import '../../../core/services/agora_service.dart';
 
 class ChatScreen extends StatefulWidget {
   final String doctorName;
   final String channelName;
-  
-  const ChatScreen({super.key, this.doctorName = 'الطبيب', this.channelName = 'sehatak_channel'});
+  const ChatScreen({super.key, this.doctorName = 'الطبيب', this.channelName = 'sehatak'});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final AgoraService _agora = AgoraService();
   final TextEditingController _msgCtrl = TextEditingController();
-  final List<String> _messages = [];
+  final List<ChatMessage> _messages = [];
   bool _isInCall = false;
+  bool _isVideoCall = false;
   bool _isMuted = false;
-  bool _isVideo = false;
-  bool _isSpeakerOn = true;
+  RtcEngine? _engine;
   int? _remoteUid;
 
   @override
   void initState() {
     super.initState();
-    _initAgora();
+    _messages.add(ChatMessage(text: 'مرحباً بك في عيادة ${widget.doctorName}، كيف يمكنني مساعدتك؟', isMe: false, time: '10:00 ص'));
   }
 
   Future<void> _initAgora() async {
-    await _agora.initialize();
-    
-    _agora.engine?.registerEventHandler(RtcEngineEventHandler(
-      onJoinChannelSuccess: (connection, elapsed) {
-        print('تم الانضمام للقناة: ${connection.channelId}');
-      },
-      onUserJoined: (connection, uid, elapsed) {
-        setState(() => _remoteUid = uid);
-      },
-      onUserOffline: (connection, uid, reason) {
-        setState(() => _remoteUid = null);
-      },
+    _engine = createAgoraRtcEngine();
+    await _engine!.initialize(const RtcEngineContext(appId: 'a24c7e1ed2f04770ad21281e11915b65'));
+    _engine!.registerEventHandler(RtcEngineEventHandler(
+      onJoinChannelSuccess: (conn, elapsed) => setState(() => _isInCall = true),
+      onUserJoined: (conn, uid, elapsed) => setState(() => _remoteUid = uid),
+      onUserOffline: (conn, uid, reason) => setState(() { _remoteUid = null; _isInCall = false; }),
     ));
   }
 
   Future<void> _startCall({bool video = false}) async {
-    setState(() { _isInCall = true; _isVideo = video; });
-    await _agora.joinChannel(widget.channelName);
+    await _initAgora();
+    setState(() { _isVideoCall = video; _isInCall = true; });
+    await _engine?.joinChannel(token: '', channelId: widget.channelName, uid: 0, options: ChannelMediaOptions(clientRoleType: ClientRoleType.clientRoleBroadcaster));
+    if (video) { await _engine?.startPreview(); await _engine?.enableVideo(); }
+    await _engine?.enableAudio();
   }
 
   Future<void> _endCall() async {
-    await _agora.leaveChannel();
-    setState(() { _isInCall = false; _remoteUid = null; });
-  }
-
-  Future<void> _toggleMute() async {
-    setState(() => _isMuted = !_isMuted);
-    await _agora.engine?.muteLocalAudioStream(_isMuted);
-  }
-
-  Future<void> _toggleSpeaker() async {
-    setState(() => _isSpeakerOn = !_isSpeakerOn);
-    await _agora.engine?.setEnableSpeakerphone(_isSpeakerOn);
+    await _engine?.leaveChannel();
+    await _engine?.release();
+    setState(() { _isInCall = false; _isVideoCall = false; _remoteUid = null; });
   }
 
   void _sendMessage() {
-    if (_msgCtrl.text.isEmpty) return;
-    setState(() => _messages.add(_msgCtrl.text));
+    if (_msgCtrl.text.trim().isEmpty) return;
+    setState(() => _messages.add(ChatMessage(text: _msgCtrl.text, isMe: true, time: _now())));
     _msgCtrl.clear();
+  }
+
+  String _now() {
+    final n = DateTime.now();
+    return '${n.hour}:${n.minute.toString().padLeft(2, '0')} ${n.hour >= 12 ? "م" : "ص"}';
   }
 
   @override
   void dispose() {
-    _agora.dispose();
+    _engine?.release();
     _msgCtrl.dispose();
     super.dispose();
   }
@@ -87,217 +77,68 @@ class _ChatScreenState extends State<ChatScreen> {
           IconButton(icon: const Icon(Icons.videocam), onPressed: () => _startCall(video: true)),
         ],
       ),
-      body: _isInCall ? _buildCallScreen() : _buildChatOnly(),
+      body: _isInCall ? _buildCallUI() : _buildChatUI(),
     );
   }
 
-  Widget _buildCallScreen() {
-    return Column(
-      children: [
-        // منطقة الفيديو
-        Expanded(
-          flex: 3,
-          child: _isVideo ? _buildVideoArea() : _buildAudioOnly(),
-        ),
-        
-        // أزرار التحكم
-        _buildCallControls(),
-        
-        // الدردشة النصية
-        Expanded(
-          flex: 2,
-          child: Column(
-            children: [
-              Expanded(child: _buildMessagesList()),
-              _buildMessageInput(),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildVideoArea() {
-    return Stack(
-      children: [
-        // فيديو الطرف الآخر (ملء الشاشة)
-        if (_remoteUid != null)
-          Positioned.fill(
-            child: AgoraVideoView(
-              controller: VideoViewController.remote(
-                rtcEngine: _agora.engine!,
-                canvas: VideoCanvas(uid: _remoteUid!),
-                connection: RtcConnection(channelId: widget.channelName),
-              ),
-            ),
-          )
-        else
-          const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.videocam_off, size: 60, color: Colors.grey),
-                SizedBox(height: 10),
-                Text('في انتظار اتصال الطرف الآخر...', style: TextStyle(color: Colors.grey, fontSize: 16)),
-              ],
-            ),
-          ),
-        
-        // فيديو محلي (صغير في الزاوية)
-        Positioned(
-          top: 10,
-          right: 10,
-          child: Container(
-            width: 120,
-            height: 160,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.white, width: 2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: AgoraVideoView(
-                controller: VideoViewController(
-                  rtcEngine: _agora.engine!,
-                  canvas: const VideoCanvas(uid: 0),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAudioOnly() {
-    return Container(
-      color: const Color(0xFF1A2540),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.teal,
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.teal.withOpacity(0.5), blurRadius: 20)],
-              ),
-              child: const Icon(Icons.person, size: 50, color: Colors.white),
-            ),
-            const SizedBox(height: 20),
-            const Text('مكالمة صوتية', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(widget.doctorName, style: const TextStyle(color: Colors.white70, fontSize: 14)),
-            const SizedBox(height: 20),
-            Text(_formatDuration(), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-          ],
-        ),
+  Widget _buildCallUI() {
+    return Column(children: [
+      Expanded(
+        child: _isVideoCall && _remoteUid != null
+            ? AgoraVideoView(controller: VideoViewController.remote(rtcEngine: _engine!, canvas: VideoCanvas(uid: _remoteUid!), connection: RtcConnection(channelId: widget.channelName)))
+            : Container(color: const Color(0xFF1A2540), child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Container(width: 100, height: 100, decoration: BoxDecoration(color: Colors.teal, shape: BoxShape.circle), child: const Icon(Icons.person, size: 50, color: Colors.white)),
+                const SizedBox(height: 16),
+                Text(widget.doctorName, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                const Text('مكالمة جارية...', style: TextStyle(color: Colors.white70)),
+              ]))),
       ),
-    );
+      Container(color: const Color(0xFF0B1121), padding: const EdgeInsets.symmetric(vertical: 12), child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+        _callBtn(Icons.mic, _isMuted ? Colors.red : Colors.white, () async { setState(() => _isMuted = !_isMuted); await _engine?.muteLocalAudioStream(_isMuted); }),
+        _callBtn(Icons.call_end, Colors.red, _endCall, size: 50),
+        _callBtn(Icons.videocam, _isVideoCall ? Colors.white : Colors.grey, () {}),
+      ])),
+    ]);
   }
 
-  Widget _buildCallControls() {
-    return Container(
-      color: const Color(0xFF0B1121),
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _callButton(Icons.mic, _isMuted ? Colors.red : Colors.white, _isMuted ? 'كتم' : 'مايك', _toggleMute),
-          _callButton(Icons.volume_up, _isSpeakerOn ? Colors.white : Colors.grey, 'سماعة', _toggleSpeaker),
-          _callButton(Icons.call_end, Colors.red, 'إنهاء', _endCall, size: 50),
-          _callButton(Icons.videocam, _isVideo ? Colors.white : Colors.grey, 'فيديو', () {
-            setState(() => _isVideo = !_isVideo);
-          }),
-          _callButton(Icons.chat, Colors.white, 'دردشة', () {}),
-        ],
-      ),
-    );
+  Widget _callBtn(IconData icon, Color color, VoidCallback onTap, {double size = 40}) {
+    return GestureDetector(onTap: onTap, child: Container(width: size + 10, height: size + 10, decoration: BoxDecoration(color: color.withOpacity(0.2), shape: BoxShape.circle), child: Icon(icon, color: color, size: size > 45 ? 28 : 22)));
   }
 
-  Widget _callButton(IconData icon, Color color, String label, VoidCallback onTap, {double size = 40}) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GestureDetector(
-          onTap: onTap,
-          child: Container(
-            width: size + 10,
-            height: size + 10,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: size > 45 ? 28 : 22),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: TextStyle(color: Colors.white70, fontSize: 10)),
-      ],
-    );
-  }
-
-  Widget _buildChatOnly() {
-    return Column(
-      children: [
-        Expanded(child: _buildMessagesList()),
-        _buildMessageInput(),
-      ],
-    );
-  }
-
-  Widget _buildMessagesList() {
-    if (_messages.isEmpty) {
-      return const Center(child: Text('ابدأ المحادثة مع الطبيب', style: TextStyle(color: Colors.grey)));
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _messages.length,
-      itemBuilder: (_, i) => Align(
-        alignment: i % 2 == 0 ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: i % 2 == 0 ? Colors.teal[100] : Colors.grey[200],
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(_messages[i]),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMessageInput() {
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Row(children: [
-        Expanded(
-          child: TextField(
-            controller: _msgCtrl,
-            textAlign: TextAlign.right,
-            decoration: InputDecoration(
-              hintText: 'اكتب رسالة...',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
+  Widget _buildChatUI() {
+    return Column(children: [
+      Expanded(child: ListView.builder(padding: const EdgeInsets.all(16), itemCount: _messages.length, itemBuilder: (_, i) => _buildMessage(_messages[i]))),
+      Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, -2))]), child: SafeArea(child: Row(children: [
+        Expanded(child: TextField(controller: _msgCtrl, textAlign: TextAlign.right, decoration: InputDecoration(hintText: 'اكتب رسالة...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none), filled: true, fillColor: Colors.grey[100], contentPadding: const EdgeInsets.symmetric(horizontal: 16)))),
+        const SizedBox(width: 6),
         CircleAvatar(backgroundColor: Colors.teal, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _sendMessage)),
-      ]),
+      ]))),
+    ]);
+  }
+
+  Widget _buildMessage(ChatMessage msg) {
+    return Align(
+      alignment: msg.isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(12),
+        constraints: const BoxConstraints(maxWidth: 280),
+        decoration: BoxDecoration(
+          color: msg.isMe ? Colors.teal[100] : Colors.grey[200],
+          borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16), bottomLeft: msg.isMe ? const Radius.circular(16) : const Radius.circular(0), bottomRight: msg.isMe ? const Radius.circular(0) : const Radius.circular(16)),
+        ),
+        child: Column(crossAxisAlignment: msg.isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
+          Text(msg.text, style: const TextStyle(fontSize: 14)),
+          const SizedBox(height: 4),
+          Text(msg.time, style: const TextStyle(color: Colors.grey, fontSize: 10)),
+        ]),
+      ),
     );
   }
-
-  String _formatDuration() {
-    return '00:00';
-  }
-
-  DateTime? _callStartTime;
 }
 
-extension on AgoraService {
-  // No changes needed
+class ChatMessage {
+  final String text;
+  final bool isMe;
+  final String time;
+  ChatMessage({required this.text, required this.isMe, required this.time});
 }

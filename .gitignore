@@ -1,9 +1,9 @@
-# تجاهل الملفات المؤقتة
-*.log
-*.tmp
-.DS_Store
-h origin main
-h origin main --force
-tatus
-tatus ===
-node_modules/
+build/
+.dart_tool/
+.gradle/
+*.apk
+*.aab
+*.zip
+android/
+.githib/
+backend/
