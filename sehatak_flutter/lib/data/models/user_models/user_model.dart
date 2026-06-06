@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class UserModel {
   final String id;
   final String? fullName;
@@ -18,19 +16,6 @@ class UserModel {
     this.userType,
     this.isVerified = false,
   });
-
-  factory UserModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return UserModel(
-      id: doc.id,
-      fullName: data['fullName'] ?? '',
-      email: data['email'] ?? '',
-      phone: data['phone'] ?? '',
-      avatar: data['avatar'] ?? '',
-      userType: data['role'] ?? 'patient',
-      isVerified: data['isVerified'] ?? false,
-    );
-  }
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
