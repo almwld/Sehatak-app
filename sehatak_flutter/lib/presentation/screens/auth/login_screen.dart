@@ -110,7 +110,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                 ),
                 const SizedBox(height: 16),
                 Row(children: [
-                  Expanded(child: SizedBox(height: 46, child: OutlinedButton(onPressed: () => context.read<AuthBloc>().add(LoginWithGoogle()), style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white30), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), backgroundColor: Colors.white.withOpacity(0.15)), child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.g_mobiledata, color: Colors.white, size: 20), SizedBox(width: 4), Text("Google", style: TextStyle(fontSize: 13, color: Colors.white))])))),
                   const SizedBox(width: 10),
                   Expanded(child: SizedBox(height: 46, child: OutlinedButton(onPressed: () {}, style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white30), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), backgroundColor: Colors.white.withOpacity(0.15)), child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.apple, color: Colors.white, size: 20), SizedBox(width: 4), Text("Apple", style: TextStyle(fontSize: 13, color: Colors.white))])))),
                 ]),

@@ -97,7 +97,7 @@ class FirestoreRest {
     if (value.containsKey('booleanValue')) return value['booleanValue'];
     if (value.containsKey('nullValue')) return null;
     if (value.containsKey('timestampValue')) return DateTime.parse(value['timestampValue']);
-    if (value.containsKey('arrayValue')) { final vals = value['arrayValue']['values'] as List? ?? []; return vals.map(_decodeValue).toList(); }
+    if (value.containsKey('arrayValue')) { final vals = value['arrayValue']['values'] as List? ?? []; return vals.map((v) => _decodeValue(v as Map<String, dynamic>)).toList(); }
     if (value.containsKey('mapValue')) { final f = value['mapValue']['fields'] as Map<String, dynamic>? ?? {}; return f.map((k, v) => MapEntry(k, _decodeValue(v))); }
     return null;
   }
