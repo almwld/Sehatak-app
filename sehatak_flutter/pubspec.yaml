@@ -36,6 +36,7 @@ dependencies:
   fl_chart: ^0.66.0
   confetti: ^0.7.0
 
+  http: ^1.2.0
 dev_dependencies:
   local_auth: ^2.1.8
   flutter_test:
@@ -55,4 +56,3 @@ flutter:
         - asset: assets/fonts/Cairo-Regular.ttf
         - asset: assets/fonts/Cairo-Bold.ttf
           weight: 700
-  http: ^1.2.0
