@@ -161,9 +161,3 @@ jobs:
     - name: Show sizes
       run: ls -lh sehatak_flutter/build/app/outputs/flutter-apk/
 
-    - name: Upload
-      uses: actions/upload-artifact@v4
-      with:
-        name: Sehatak-APKs
-        path: sehatak_flutter/build/app/outputs/flutter-apk/*.apk
-        retention-days: 30
