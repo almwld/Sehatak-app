@@ -248,7 +248,7 @@ jobs:
         run: cd sehatak_flutter && flutter pub get
 
       - name: Build APK
-        run: cd sehatak_flutter && flutter build apk --release --split-per-abi
+        run: cd sehatak_flutter && flutter build apk --release --target-platform android-arm64
 
       - name: Show sizes
         run: ls -lh sehatak_flutter/build/app/outputs/flutter-apk/
