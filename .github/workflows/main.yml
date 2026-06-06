@@ -34,6 +34,7 @@ jobs:
     - name: Create Gradle files
       run: |
         cd sehatak_flutter
+        
         cat > android/settings.gradle << 'SET'
         pluginManagement {
             def sdk = { def p = new Properties(); file("local.properties").withInputStream { p.load(it) }; return p.getProperty("flutter.sdk") }()
@@ -48,6 +49,7 @@ jobs:
         }
         include ":app"
         SET
+        
         cat > android/build.gradle << 'ROOT'
         buildscript {
             ext.kotlin_version = '1.9.0'
@@ -64,6 +66,7 @@ jobs:
         subprojects { project.evaluationDependsOn(':app') }
         tasks.register("clean", Delete) { delete rootProject.buildDir }
         ROOT
+        
         cat > android/app/build.gradle << 'APP'
         plugins {
             id "com.android.application"
@@ -75,10 +78,8 @@ jobs:
             namespace "com.sehatak.app"
             compileSdkVersion 34
             compileOptions {
-                sourceCompatibility JavaVersion.VERSION_17
-                targetCompatibility JavaVersion.VERSION_17
-            }
-            kotlinOptions { jvmTarget = "17" }
+                sourceCompatibility JavaVersion.VERSION_1_8
+                targetCompatibility JavaVersion.VERSION_1_8
             }
             defaultConfig {
                 applicationId "com.sehatak.app"
@@ -91,6 +92,7 @@ jobs:
         }
         flutter { source '../..' }
         APP
+        
         cat > android/gradle/wrapper/gradle-wrapper.properties << 'WRAP'
         distributionBase=GRADLE_USER_HOME
         distributionPath=wrapper/dists
@@ -98,44 +100,53 @@ jobs:
         zipStorePath=wrapper/dists
         distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-all.zip
         WRAP
+        
         cat > android/gradle.properties << 'PROPS'
         org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=2g
         android.useAndroidX=true
         android.enableJetifier=true
         PROPS
 
-    - name: Create Android files
+    - name: Create AndroidManifest & MainActivity
       run: |
         cd sehatak_flutter
+        
         cat > android/app/src/main/AndroidManifest.xml << 'MAN'
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <application android:label="صحتك" android:icon="@mipmap/ic_launcher">
                 <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop" android:theme="@style/LaunchTheme" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" android:hardwareAccelerated="true" android:windowSoftInputMode="adjustResize">
                     <meta-data android:name="io.flutter.embedding.android.NormalTheme" android:resource="@style/NormalTheme"/>
-                    <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN"/>
+                        <category android:name="android.intent.category.LAUNCHER"/>
+                    </intent-filter>
                 </activity>
                 <meta-data android:name="flutterEmbedding" android:value="2"/>
             </application>
             <uses-permission android:name="android.permission.INTERNET"/>
         </manifest>
         MAN
+        
         cat > android/app/src/main/kotlin/com/sehatak/app/MainActivity.kt << 'KT'
         package com.sehatak.app
         import io.flutter.embedding.android.FlutterActivity
         class MainActivity: FlutterActivity()
         KT
+        
         cat > android/app/src/main/res/values/styles.xml << 'STY'
         <resources>
             <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar"><item name="android:windowBackground">@drawable/launch_background</item></style>
             <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar"><item name="android:windowBackground">@drawable/launch_background</item></style>
         </resources>
         STY
+        
         cat > android/app/src/main/res/drawable/launch_background.xml << 'DRAW'
         <layer-list xmlns:android="http://schemas.android.com/apk/res/android"><item android:drawable="@android:color/black"/></layer-list>
         DRAW
+        
         echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
 
-    - name: google-services.json
+    - name: Add google-services.json
       run: |
         cat > sehatak_flutter/android/app/google-services.json << 'JSONEOF'
         {"project_info":{"project_number":"1053269106596","project_id":"sehatak-platform","storage_bucket":"sehatak-platform.firebasestorage.app"},"client":[{"client_info":{"mobilesdk_app_id":"1:1053269106596:android:de2128024cd023a973ab31","android_client_info":{"package_name":"com.sehatak.app"}},"oauth_client":[],"api_key":[{"current_key":"AIzaSyD_frsfhn0jde9cWVUW3hXjGcnMIQmY51k"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}
@@ -144,23 +155,15 @@ jobs:
     - name: Install
       run: cd sehatak_flutter && flutter pub get
 
-    - name: Build Split APKs
+    - name: Build
       run: cd sehatak_flutter && flutter build apk --release --split-per-abi
 
-    - name: Upload arm64-v8a
-      uses: actions/upload-artifact@v4
-      with:
-        name: Sehatak-arm64-v8a
-        path: sehatak_flutter/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+    - name: Show sizes
+      run: ls -lh sehatak_flutter/build/app/outputs/flutter-apk/
 
-    - name: Upload armeabi-v7a
+    - name: Upload
       uses: actions/upload-artifact@v4
       with:
-        name: Sehatak-armeabi-v7a
-        path: sehatak_flutter/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
-
-    - name: Upload x86_64
-      uses: actions/upload-artifact@v4
-      with:
-        name: Sehatak-x86_64
-        path: sehatak_flutter/build/app/outputs/flutter-apk/app-x86_64-release.apk
+        name: Sehatak-APKs
+        path: sehatak_flutter/build/app/outputs/flutter-apk/*.apk
+        retention-days: 30
