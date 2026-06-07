@@ -26,8 +26,6 @@ jobs:
         channel: 'stable'
         cache: true
     
-    - name: Create directories
-      run: mkdir -p sehatak_flutter/android/app
     - name: 🔑 Add google-services.json
       run: |
         cat > sehatak_flutter/android/app/google-services.json << 'JSONEOF'
@@ -65,10 +63,6 @@ jobs:
     - name: 📦 Install dependencies
       run: |
         cd sehatak_flutter
-    - name: Create Android with embedding v2
-      run: |
-        cd sehatak_flutter
-        flutter create --platforms android .
         flutter pub get
     
     - name: 🔨 Build APK
