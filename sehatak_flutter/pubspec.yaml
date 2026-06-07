@@ -47,3 +47,14 @@ flutter:
         - asset: assets/fonts/Cairo-Regular.ttf
         - asset: assets/fonts/Cairo-Bold.ttf
           weight: 700
+  table_calendar: ^3.0.9
+  dio: ^5.4.0
+  flutter_svg: ^2.0.9
+  file_picker: ^6.1.1
+  fl_chart: ^0.66.0
+  connectivity_plus: ^5.0.2
+  path_provider: ^2.1.1
+  sqflite: ^2.3.0
+  path: ^1.8.3
+  flutter_local_notifications: ^18.0.0
+  geocoding: ^3.0.0
