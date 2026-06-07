@@ -65,6 +65,10 @@ jobs:
     - name: 📦 Install dependencies
       run: |
         cd sehatak_flutter
+    - name: Create Android with embedding v2
+      run: |
+        cd sehatak_flutter
+        flutter create --platforms android .
         flutter pub get
     
     - name: 🔨 Build APK
